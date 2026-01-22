@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --color-primary: 234 179 8;
+    /* Yellow 500 - Ouro Puro */
+    --color-secondary: 0 0 0;
+  }
+
+  body {
+    @apply bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-yellow-500/30 selection:text-yellow-500 overflow-x-hidden;
+    background-image: linear-gradient(to bottom, rgba(9, 9, 11, 0.94), rgba(9, 9, 11, 0.98)), url('https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+@layer components {
+  .btn-premium {
+    @apply relative overflow-hidden px-6 py-3 md:px-8 md:py-4 bg-yellow-500 text-black font-black uppercase tracking-widest text-xs md:text-sm rounded-none transition-all duration-300 hover:opacity-90 hover:scale-[1.02] active:scale-95 shrink-0;
+    box-shadow: 0 0 20px rgba(var(--color-primary), 0.4);
+    clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%);
+  }
+
+  .card-premium {
+    @apply bg-zinc-900/60 backdrop-blur-md border border-white/5 rounded-none p-6 md:p-8 transition-all duration-500 hover:border-yellow-500/30;
+    position: relative;
+    min-width: 0;
+  }
+
+  .card-premium:hover {
+    box-shadow: 0 0 40px rgba(var(--color-primary), 0.05);
+  }
+
+  .card-premium::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    @apply bg-yellow-500;
+  }
+
+  .input-premium {
+    @apply w-full bg-zinc-950/80 border border-zinc-800 rounded-none p-4 text-zinc-100 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none transition-all placeholder:text-zinc-700 font-sans;
+  }
+}
+
+/* Custom Scrollbar Premium */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-zinc-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-800 hover:bg-yellow-500 transition-colors;
+}
+
+/* Animations */
+@keyframes gold-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out forwards;
+}
+
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--color-primary), 0.1), transparent);
+  animation: gold-shimmer 2s infinite;
+}
