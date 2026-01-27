@@ -475,3 +475,17 @@ CREATE POLICY "SaleItems_Owner_All" ON sale_items FOR ALL TO authenticated USING
 
 -- NOTIFICAR SCHEMA RELOAD
 NOTIFY pgrst, 'reload schema';
+-- 12. TABELA: NOTIFICATION_LOGS (Controle de Automação WhatsApp)
+CREATE TABLE notification_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    appointment_id UUID REFERENCES appointments(id) ON DELETE CASCADE,
+    salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
+    type TEXT NOT NULL, -- 'confirm', 'remind_24h', 'remind_2h'
+    status TEXT DEFAULT 'pending',
+    sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX idx_notification_logs_appointment ON notification_logs(appointment_id);
+CREATE INDEX idx_notification_logs_type_status ON notification_logs(type, status);

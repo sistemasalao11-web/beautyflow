@@ -398,7 +398,23 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             addProduct: (p: any) => upsert('products', p),
             updateProduct: (id: string, p: any) => upsert('products', { ...p, id }),
             removeProduct: (id: string) => remove('products', id),
-            addAppointment: (a: any) => upsert('appointments', a),
+            addAppointment: async (a: any) => {
+                const result = await upsert('appointments', a);
+
+                // DISPARO WHATSAPP (CONFIRMAÇÃO IMEDIATA)
+                if (result && result.id) {
+                    try {
+                        const { sendWhatsApp } = await import('../services/whatsapp');
+                        const message = `Fala, ${result.clientName}!\nSeu horário para ${result.serviceName} com ${result.professionalName} dia ${result.date} às ${result.time} está confirmado! ✂️\n\nQualquer imprevisto é só avisar por aqui.`;
+
+                        sendWhatsApp(result.clientPhone, message);
+                    } catch (err) {
+                        console.warn('[AUTOMATION] Falha ao disparar confirmação:', err);
+                    }
+                }
+
+                return result;
+            },
             updateStatus: async (id: string, statusText: string) => {
                 const { error: updError } = await supabase.from('appointments').update({ status: statusText }).eq('id', id);
                 if (updError) toast.error('Erro'); else fetchData();
