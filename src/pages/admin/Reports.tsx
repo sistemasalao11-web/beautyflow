@@ -16,10 +16,10 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { DailyGoal } from '../../components/DailyGoal';
 
 export const Reports = () => {
     const { metrics, loading } = useSaaS();
-    console.log('[RENDER] Reports Page initialized');
     const navigate = useNavigate();
     const [detailView, setDetailView] = useState<{
         isOpen: boolean;
@@ -80,6 +80,8 @@ export const Reports = () => {
 
     return (
         <div className="space-y-12 animate-fade-in pb-20 relative px-4 md:px-0">
+            <DailyGoal />
+
             <header className="flex flex-col gap-2">
                 <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-none">
                     Performance <span className="text-yellow-500">Analytics</span>
