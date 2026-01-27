@@ -428,10 +428,17 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                 // DISPARO WHATSAPP (CONFIRMAÇÃO IMEDIATA)
                 if (result && result.id) {
                     try {
-                        const { sendWhatsApp } = await import('../services/whatsapp');
-                        const message = `Fala, ${result.clientName}!\nSeu horário para ${result.serviceName} com ${result.professionalName} dia ${result.date} às ${result.time} está confirmado! ✂️\n\nQualquer imprevisto é só avisar por aqui.`;
+                        const { sendWhatsApp, formatWhatsAppPhone } = await import('../services/whatsapp');
 
-                        sendWhatsApp(result.clientPhone, message);
+                        const clientName = result.clientName || a.clientName || 'Cliente';
+                        const serviceName = result.serviceName || a.serviceName || 'Serviço';
+                        const professionalName = result.professionalName || a.professionalName || 'Profissional';
+                        const phone = formatWhatsAppPhone(result.clientPhone || a.clientPhone || '');
+
+                        if (phone) {
+                            const message = `Fala, ${clientName}!\nSeu horário para ${serviceName} com ${professionalName} dia ${result.date} às ${result.time} está confirmado! ✂️\n\nQualquer imprevisto é só avisar por aqui.`;
+                            sendWhatsApp(phone, message);
+                        }
                     } catch (err) {
                         console.warn('[AUTOMATION] Falha ao disparar confirmação:', err);
                     }

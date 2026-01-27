@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { Appointment, Product, Professional, Service, Client } from '../../types/saas';
 
 export const CalendarView = () => {
     const { appointments, products, services, actions, loading, clients, professionals } = useSaaS();
@@ -118,6 +119,8 @@ export const CalendarView = () => {
         e.preventDefault();
         try {
             let finalClientId = newApptData.clientId;
+            let finalClientName = newApptData.clientName;
+            let finalClientPhone = newApptData.clientPhone;
 
             if (isQuickClient) {
                 const newClient = await actions.addClient({
@@ -126,11 +129,21 @@ export const CalendarView = () => {
                     totalSpent: 0,
                     fidelityPoints: 0
                 });
-                if (newClient) finalClientId = newClient.id;
+                if (newClient) {
+                    finalClientId = newClient.id;
+                    finalClientName = newClient.name;
+                    finalClientPhone = newClient.phone;
+                }
+            } else {
+                const existingClient = clients.find((c: Client) => c.id === finalClientId);
+                if (existingClient) {
+                    finalClientName = existingClient.name;
+                    finalClientPhone = existingClient.phone || '';
+                }
             }
 
             // Check for conflicts
-            const hasConflict = appointments.some(a =>
+            const hasConflict = appointments.some((a: Appointment) =>
                 a.professionalId === newApptData.professionalId &&
                 a.date === newApptData.date &&
                 a.time === newApptData.time &&
@@ -142,11 +155,19 @@ export const CalendarView = () => {
                 return;
             }
 
+            const selectedService = services.find((s: Service) => s.id === newApptData.serviceId);
+            const selectedProf = professionals.find((p: Professional) => p.id === newApptData.professionalId);
+
             await actions.addAppointment({
                 salonId: 'current',
                 clientId: finalClientId,
+                clientName: finalClientName,
+                clientPhone: finalClientPhone,
                 professionalId: newApptData.professionalId,
+                professionalName: selectedProf?.name || '',
                 serviceId: newApptData.serviceId,
+                serviceName: selectedService?.name || '',
+                totalPrice: selectedService?.price || 0,
                 date: newApptData.date,
                 time: newApptData.time,
                 status: 'pending'
@@ -165,8 +186,8 @@ export const CalendarView = () => {
         }
     };
 
-    const clientData = checkoutAppt ? clients.find(c => c.id === checkoutAppt.clientId) : null;
-    const filteredProducts = products.filter(p =>
+    const clientData = checkoutAppt ? clients.find((c: Client) => c.id === checkoutAppt.clientId) : null;
+    const filteredProducts = products.filter((p: Product) =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -226,7 +247,7 @@ export const CalendarView = () => {
                                 </div>
                                 <div className="relative h-full">
                                     {HOURS.map((hour, hIdx) => {
-                                        const apptsInHour = appointments.filter(a =>
+                                        const apptsInHour = appointments.filter((a: Appointment) =>
                                             isSameDay(day, parseISO(a.date)) && a.time.startsWith(hour.split(':')[0])
                                         );
 
@@ -238,7 +259,7 @@ export const CalendarView = () => {
                                             >
                                                 <span className="text-[9px] font-bold text-zinc-800 uppercase tabular-nums">{hour}</span>
                                                 <div className="mt-1 space-y-1">
-                                                    {apptsInHour.map((appt) => (
+                                                    {apptsInHour.map((appt: Appointment) => (
                                                         <div
                                                             key={appt.id}
                                                             onClick={(e) => { e.stopPropagation(); setCheckoutAppt(appt); }}
@@ -322,7 +343,7 @@ export const CalendarView = () => {
                                             onChange={e => setNewApptData({ ...newApptData, clientId: e.target.value })}
                                         >
                                             <option value="">SELECIONE CLIENTE</option>
-                                            {clients.map(c => (
+                                            {clients.map((c: Client) => (
                                                 <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
                                             ))}
                                         </select>
@@ -330,7 +351,7 @@ export const CalendarView = () => {
                                             <div className="flex justify-between items-center px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg animate-fade-in">
                                                 <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Saldo Fidelidade</span>
                                                 <span className="text-[10px] text-yellow-500 font-black">
-                                                    {clients.find(c => c.id === newApptData.clientId)?.fidelityPoints || 0} PTS
+                                                    {clients.find((c: Client) => c.id === newApptData.clientId)?.fidelityPoints || 0} PTS
                                                 </span>
                                             </div>
                                         )}
@@ -380,7 +401,7 @@ export const CalendarView = () => {
                                     onChange={e => setNewApptData({ ...newApptData, serviceId: e.target.value })}
                                 >
                                     <option value="">SELECIONE SERVIÇO</option>
-                                    {services.map(s => (
+                                    {services.map((s: Service) => (
                                         <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
                                     ))}
                                 </select>
@@ -397,7 +418,7 @@ export const CalendarView = () => {
                                     onChange={e => setNewApptData({ ...newApptData, professionalId: e.target.value })}
                                 >
                                     <option value="">SELECIONE PROFISSIONAL</option>
-                                    {professionals.map(p => (
+                                    {professionals.map((p: Professional) => (
                                         <option key={p.id} value={p.id}>{p.name.toUpperCase()}</option>
                                     ))}
                                 </select>
@@ -463,7 +484,7 @@ export const CalendarView = () => {
 
                                         {searchTerm && (
                                             <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                                                {filteredProducts.map(p => (
+                                                {filteredProducts.map((p: Product) => (
                                                     <button
                                                         key={p.id}
                                                         onClick={() => addProductToCheckout(p)}
