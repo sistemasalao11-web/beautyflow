@@ -229,7 +229,20 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
         const sub = supabase.channel(`saas-${salon.id}`)
             .on('postgres_changes', { event: '*', schema: 'public', filter: `salon_id=eq.${salon.id}` }, fetchData)
             .subscribe();
-        return () => { sub.unsubscribe(); };
+
+        // --- MOTOR DE AUTOMAÇÃO WHATSAPP ---
+        const runAutomation = async () => {
+            const { processAutomations } = await import('../services/automation');
+            processAutomations(salon.id);
+        };
+
+        runAutomation(); // Roda ao carregar
+        const interval = setInterval(runAutomation, 30 * 60 * 1000); // Roda a cada 30 min
+
+        return () => {
+            sub.unsubscribe();
+            clearInterval(interval);
+        };
     }, [salon?.id, fetchData]);
 
     const upsert = async (table: string, data: any) => {
