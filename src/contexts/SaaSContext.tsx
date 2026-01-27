@@ -181,14 +181,17 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                 supabase.from('clients').select('*').eq('salon_id', sId)
             ]);
 
-            setAppointments((appts.data || []).map(a => ({
-                ...mapToFrontend(a),
-                clientName: a.clients?.name,
-                clientPhone: a.clients?.phone,
-                serviceName: a.services?.name,
-                totalPrice: a.total_price || a.services?.price || 0,
-                professionalName: a.professionals?.name
-            })));
+            setAppointments((appts.data || []).map(a => {
+                const frontend = mapToFrontend(a);
+                return {
+                    ...frontend,
+                    clientName: a.clients?.name || a.client_name || 'Cliente',
+                    clientPhone: a.client_phone || a.clients?.phone || '',
+                    serviceName: a.services?.name || a.service_name,
+                    totalPrice: Number(a.total_price || a.services?.price || 0),
+                    professionalName: a.professionals?.name || a.professional_name
+                };
+            }));
             setProducts((prods.data || []).map(p => ({ ...mapToFrontend(p), categoryName: p.categories?.name })));
             setServices((servs.data || []).map(s => ({ ...mapToFrontend(s), categoryName: s.categories?.name })));
             setProfessionals((profs.data || []).map(mapToFrontend));
