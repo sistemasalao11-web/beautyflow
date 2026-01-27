@@ -312,15 +312,27 @@ export const Reports = () => {
                                                         <div className="text-xs font-black text-white uppercase tracking-wider">{a.clientName}</div>
                                                         <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">{a.serviceName} • {a.time}</div>
                                                     </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(`/admin/clientes?search=${a.clientName}`);
-                                                        }}
-                                                        className="text-[9px] font-black text-yellow-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        Ver Contato
-                                                    </button>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const msg = `Olá ${a.clientName}! Sou da ${metrics.details.salonName || 'Barbearia'}. Só enviando um lembrete rápido do seu horário às ${a.time} para o serviço ${a.serviceName}. Te espero aqui! ✂️`;
+                                                                window.open(`https://wa.me/${a.clientPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                                            }}
+                                                            className="px-3 py-1.5 bg-emerald-600/10 border border-emerald-600/20 text-[9px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            Zap Rápido
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/admin/clientes?search=${a.clientName}`);
+                                                            }}
+                                                            className="text-[9px] font-black text-zinc-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            Ver Ficha
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
