@@ -183,13 +183,16 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
             setAppointments((appts.data || []).map(a => {
                 const frontend = mapToFrontend(a);
+                const rawPhone = a.client_phone || a.clients?.phone || '';
+                const cleanPhone = rawPhone.replace(/\D/g, '');
+
                 return {
                     ...frontend,
                     clientName: a.clients?.name || a.client_name || 'Cliente',
-                    clientPhone: a.client_phone || a.clients?.phone || '',
-                    serviceName: a.services?.name || a.service_name,
+                    clientPhone: cleanPhone.startsWith('55') ? cleanPhone : cleanPhone ? `55${cleanPhone}` : '',
+                    serviceName: a.services?.name || a.service_name || 'Serviço',
                     totalPrice: Number(a.total_price || a.services?.price || 0),
-                    professionalName: a.professionals?.name || a.professional_name
+                    professionalName: a.professionals?.name || a.professional_name || 'Profissional'
                 };
             }));
             setProducts((prods.data || []).map(p => ({ ...mapToFrontend(p), categoryName: p.categories?.name })));
@@ -345,11 +348,14 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     status: a.status,
                     time: a.time
                 })),
-                churnRisk: churnRiskClients.map(c => ({
-                    id: c.id,
-                    name: c.name,
-                    phone: c.phone
-                }))
+                churnRisk: churnRiskClients.map(c => {
+                    const cleanPhone = (c.phone || '').replace(/\D/g, '');
+                    return {
+                        id: c.id,
+                        name: c.name || 'Cliente',
+                        phone: cleanPhone.startsWith('55') ? cleanPhone : cleanPhone ? `55${cleanPhone}` : ''
+                    };
+                })
             }
         };
     }, [appointments, clients, services, professionals]);

@@ -295,7 +295,13 @@ export const Reports = () => {
                                                             <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">{c.phone || 'Sem telefone'}</div>
                                                         </div>
                                                         <button
-                                                            onClick={() => window.open(`https://wa.me/${c.phone}?text=Olá ${c.name}, sentimos sua falta! Que tal agendar um corte?`, '_blank')}
+                                                            onClick={() => {
+                                                                if (!c.phone) {
+                                                                    toast.error('Cliente sem telefone cadastrado.');
+                                                                    return;
+                                                                }
+                                                                window.open(`https://wa.me/${c.phone}?text=Olá ${c.name}, sentimos sua falta! Que tal agendar um corte?`, '_blank');
+                                                            }}
                                                             className="px-4 py-2 bg-zinc-950 border border-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:bg-emerald-600 transition-colors"
                                                         >
                                                             Reativar via Whats
@@ -316,6 +322,10 @@ export const Reports = () => {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                if (!a.clientPhone) {
+                                                                    toast.error('Esse agendamento não possui telefone de contato.');
+                                                                    return;
+                                                                }
                                                                 const msg = `Olá ${a.clientName}! Sou da ${metrics.salonName}. Só enviando um lembrete rápido do seu horário às ${a.time} para o serviço ${a.serviceName}. Te espero aqui! ✂️`;
                                                                 window.open(`https://wa.me/${a.clientPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                                                             }}
