@@ -15,23 +15,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 1. LIMPEZA TOTAL (RESET CONTROLADO)
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS notification_logs CASCADE;
-DROP TABLE IF EXISTS sale_items CASCADE;
-DROP TABLE IF EXISTS sales CASCADE;
-DROP TABLE IF EXISTS appointments CASCADE;
-DROP TABLE IF EXISTS products CASCADE;
-DROP TABLE IF EXISTS professionals CASCADE;
-DROP TABLE IF EXISTS services CASCADE;
-DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS clients CASCADE;
-DROP TABLE IF EXISTS salons CASCADE;
+-- 1. ESTRUTURA (TABELAS)
+-- O bloco de DROP TABLE foi removido para evitar deleção acidental de dados em produção.
+
 
 -- 2. TABELA: SALONS
 CREATE TABLE salons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id UUID NOT NULL,
+    owner_id UUID NOT NULL UNIQUE,
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     whatsapp TEXT,

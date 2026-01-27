@@ -2,18 +2,17 @@ import { useState } from 'react';
 import { useSaaS } from '../../hooks/useSaaS';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
+import { toast } from 'react-hot-toast';
 import {
     TrendingUp,
-    Calendar,
-    Ticket,
+    Target,
     Activity,
     Clock,
     X,
     ArrowUpRight,
     Users,
     ClipboardList,
-    DollarSign,
-    Target
+    DollarSign
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -97,26 +96,34 @@ export const Reports = () => {
                     onClick={() => openDetails('Detalhamento de Faturamento', 'revenue')}
                 />
                 <MetricCard
-                    icon={Calendar}
-                    label="Volume Agendamentos"
-                    value={metrics.totalAppointments}
-                    unit="TOTAIS"
-                    onClick={() => openDetails('Histórico de Agendamentos', 'appointments')}
-                />
-                <MetricCard
                     icon={Target}
-                    label="Taxa de Conclusão"
-                    value={`${metrics.completionRate.toFixed(1)}%`}
+                    label="Taxa de Retenção"
+                    value={`${metrics.retentionRate.toFixed(1)}%`}
+                    unit="CLIENTES FIÉIS"
                     colorClass="text-emerald-500"
                     bgClass="bg-emerald-600/10"
                     borderClass="border-emerald-600/20"
                     onClick={() => openDetails('Análise de Retenção', 'completion')}
                 />
                 <MetricCard
-                    icon={Ticket}
-                    label="Ticket Médio"
-                    value={`R$ ${metrics.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                    onClick={() => openDetails('Performance de Vendas', 'ticket')}
+                    icon={Activity}
+                    label="Saúde do Salão"
+                    value={`${metrics.activationScore.toFixed(0)}%`}
+                    unit="SCORE ATIVAÇÃO"
+                    colorClass="text-blue-500"
+                    bgClass="bg-blue-600/10"
+                    borderClass="border-blue-600/20"
+                    onClick={() => toast.success('Score baseado em: Serviços, Profissionais e Agendamentos realizados.')}
+                />
+                <MetricCard
+                    icon={Users}
+                    label="Risco de Churn"
+                    value={metrics.churnRiskCount}
+                    unit="CLIENTES SUMIDOS"
+                    colorClass="text-red-500"
+                    bgClass="bg-red-600/10"
+                    borderClass="border-red-600/20"
+                    onClick={() => openDetails('Risco de Churn', 'status')}
                 />
             </div>
 
@@ -275,7 +282,27 @@ export const Reports = () => {
 
                                 {detailView.type === 'status' && (
                                     <div className="space-y-8">
-                                        <div className="space-y-4">
+                                        {metrics.churnRiskCount > 0 && (
+                                            <div className="space-y-4">
+                                                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest px-1">Clientes em Risco (Churn)</h4>
+                                                <p className="text-[10px] text-zinc-500 mb-4 px-1">Clientes que não aparecem há mais de 45 dias. Envie uma oferta de reativação!</p>
+                                                {metrics.details.churnRisk.map((c: any) => (
+                                                    <div key={c.id} className="p-4 bg-red-500/5 border border-red-500/10 flex justify-between items-center group">
+                                                        <div>
+                                                            <div className="text-xs font-black text-white uppercase tracking-wider">{c.name}</div>
+                                                            <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">{c.phone || 'Sem telefone'}</div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => window.open(`https://wa.me/${c.phone}?text=Olá ${c.name}, sentimos sua falta! Que tal agendar um corte?`, '_blank')}
+                                                            className="px-4 py-2 bg-zinc-950 border border-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:bg-emerald-600 transition-colors"
+                                                        >
+                                                            Reativar via Whats
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="space-y-4 pt-8 border-t border-white/5">
                                             <h4 className="text-[10px] font-black text-yellow-500 uppercase tracking-widest px-1">Pendentes de Hoje</h4>
                                             {metrics.statusToday.lists.pending.map((a: any) => (
                                                 <div key={a.id} className="p-4 bg-yellow-500/5 border border-yellow-500/10 flex justify-between items-center group">
@@ -292,18 +319,6 @@ export const Reports = () => {
                                                     >
                                                         Ver Contato
                                                     </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="space-y-4">
-                                            <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest px-1">Concluídos Hoje</h4>
-                                            {metrics.statusToday.lists.completed.map((a: any) => (
-                                                <div key={a.id} className="p-4 bg-zinc-900 border border-white/5 flex justify-between items-center grayscale hover:grayscale-0 transition-all opacity-50 hover:opacity-100">
-                                                    <div>
-                                                        <div className="text-xs font-black text-white uppercase tracking-wider">{a.clientName}</div>
-                                                        <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">{a.serviceName} • {a.time}</div>
-                                                    </div>
-                                                    <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">FINALIZADO</div>
                                                 </div>
                                             ))}
                                         </div>

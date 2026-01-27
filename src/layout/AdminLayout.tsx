@@ -7,13 +7,14 @@ import {
     Scissors,
     Users,
     Package,
-    BarChart3,
     Calendar,
     LogOut,
     Bell,
     Menu,
     X,
-    Lock
+    Lock,
+    Zap,
+    BarChart3 as BarChartIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSaaS } from '../hooks/useSaaS';
@@ -136,7 +137,8 @@ export const AdminLayout = () => {
                         </div>
                         <nav className="flex flex-col gap-6">
                             {[
-                                { to: '/admin', icon: BarChart3, label: 'Dashboard' },
+                                { to: '/admin', icon: Zap, label: 'Growth Engine' },
+                                { to: '/admin/reports', icon: BarChartIcon, label: 'Performance' },
                                 { to: '/admin/agenda', icon: Calendar, label: 'Agenda Viva' },
                                 { to: '/admin/services', icon: LayoutDashboard, label: 'Serviços' },
                                 { to: '/admin/barbers', icon: Users, label: 'Especialistas' },
@@ -182,7 +184,11 @@ export const AdminLayout = () => {
                     <span className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.4em] block mb-6 px-4">Menu Principal</span>
 
                     <Link to="/admin" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin')}`}>
-                        <BarChart3 size={18} /> Dashboard
+                        <Zap size={18} /> Growth Engine
+                    </Link>
+
+                    <Link to="/admin/reports" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/reports')}`}>
+                        <BarChartIcon size={18} /> Performance
                     </Link>
 
                     <Link to="/admin/agenda" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/agenda')}`}>

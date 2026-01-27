@@ -125,28 +125,16 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     .from('salons')
                     .select('*')
                     .eq('owner_id', user.id)
+                    .order('created_at', { ascending: true })
                     .limit(1);
 
                 if (sError) throw sError;
                 salonData = data?.[0] || null;
 
                 if (!salonData) {
-                    console.warn('[BOOT] No profile found. Creating fallback tenant...');
-                    const { data: newSalon, error: createError } = await supabase
-                        .from('salons')
-                        .insert({
-                            owner_id: user.id,
-                            name: 'Minha Barbearia',
-                            slug: (user.email?.split('@')[0] || 'salon').replace(/[^a-z0-9]/g, '') + Math.floor(Math.random() * 1000),
-                            theme_color: '#EAB308',
-                            plan_type: 'iniciante',
-                            payment_status: 'trial'
-                        })
-                        .select()
-                        .limit(1);
-
-                    if (createError) throw createError;
-                    salonData = newSalon?.[0] || null;
+                    console.warn('[BOOT] No profile found for user.');
+                    setStatus('no-salon');
+                    return;
                 }
             } else if (slug) {
                 const { data, error: sError } = await supabase
@@ -281,10 +269,39 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
         const completionRate = appointments.length > 0 ? (completedAppts.length / appointments.length) * 100 : 0;
         const todayStr = new Date().toISOString().split('T')[0];
 
+        // --- NOVAS MÉTRICAS DE GROWTH SaaS ---
+
+        // 1. Retenção de Clientes (% que voltou mais de uma vez)
+        const clientApptCounts = appointments.reduce((acc: any, curr) => {
+            if (curr.clientId) acc[curr.clientId] = (acc[curr.clientId] || 0) + 1;
+            return acc;
+        }, {});
+        const recurringClients = Object.values(clientApptCounts).filter((count: any) => count > 1).length;
+        const totalClientsWithAppts = Object.keys(clientApptCounts).length;
+        const retentionRate = totalClientsWithAppts > 0 ? (recurringClients / totalClientsWithAppts) * 100 : 0;
+
+        // 2. Churn Risk (Clientes que não aparecem há 45 dias)
+        const fortyFiveDaysAgo = new Date();
+        fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
+        const churnRiskClients = clients.filter(c => {
+            const lastAppt = appointments.find(a => a.clientId === c.id);
+            if (!lastAppt) return false;
+            return new Date(lastAppt.date) < fortyFiveDaysAgo;
+        });
+
+        // 3. Status de Ativação (Health Score do Salão)
+        const hasServices = services.length > 0;
+        const hasProfessionals = professionals.length > 0;
+        const hasAppointments = appointments.length > 0;
+        const activationScore = [hasServices, hasProfessionals, hasAppointments].filter(Boolean).length * 33.3;
+
         return {
             totalRevenue,
             totalAppointments: appointments.length,
             completionRate,
+            retentionRate,
+            activationScore,
+            churnRiskCount: churnRiskClients.length,
             averageTicket: completedAppts.length > 0 ? totalRevenue / completedAppts.length : 0,
             statusToday: {
                 pending: appointments.filter(a => a.date === todayStr && a.status === 'pending').length,
@@ -309,10 +326,15 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     service: a.serviceName,
                     status: a.status,
                     time: a.time
+                })),
+                churnRisk: churnRiskClients.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone
                 }))
             }
         };
-    }, [appointments]);
+    }, [appointments, clients, services, professionals]);
 
     const permissions = useMemo(() => {
         const plan = settings?.planType || 'iniciante';

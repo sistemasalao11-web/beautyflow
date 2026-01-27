@@ -44,26 +44,21 @@ export const Register = () => {
             if (authError) throw authError;
 
             if (authData.user) {
-                // Wait for session to be established
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // 2. Create the Salon record
                 const { error: salonError } = await supabase
                     .from('salons')
                     .insert({
                         owner_id: authData.user.id,
                         name: salonName,
-                        slug: salonName.toLowerCase().trim().replace(/\s+/g, '-'),
+                        slug: `${salonName.toLowerCase().trim().replace(/\s+/g, '-')}-${Math.floor(Math.random() * 1000)}`,
                         theme_color: '#EAB308',
                         last_payment_id: paymentId,
-                        payment_status: paymentStatus,
-                        whatsapp: '' // Initialize empty
+                        payment_status: paymentStatus || 'trial',
+                        whatsapp: ''
                     });
 
                 if (salonError) {
-                    // Se o erro for de RLS, pode ser que o usuário não tenha sessão ativa ainda ou e-mail precise confirmar
-                    if (salonError.message.includes('row-level security') || salonError.code === '42501') {
-                        throw new Error('Conta criada com sucesso, mas houve um erro ao configurar sua barbearia. Por favor, tente fazer Login para finalizar a configuração automaticamente.');
+                    if (salonError.message.includes('unique constraint') || salonError.code === '23505') {
+                        throw new Error('Você já possui um salão cadastrado ou este nome de salão já existe.');
                     }
                     throw salonError;
                 }

@@ -16,6 +16,7 @@ import { Customers } from './pages/admin/Customers';
 import { CalendarView } from './pages/admin/Calendar';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { GrowthDashboard } from './pages/admin/GrowthDashboard';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -112,7 +113,8 @@ export default function App() {
 
           {/* Painel Administrativo Protegido */}
           <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
-            <Route index element={<Reports />} />
+            <Route index element={<GrowthDashboard />} />
+            <Route path="reports" element={<Reports />} />
             <Route path="agenda" element={<CalendarView />} />
             <Route path="services" element={<Services />} />
             <Route path="barbers" element={<Barbers />} />

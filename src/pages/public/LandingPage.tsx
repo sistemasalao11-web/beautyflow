@@ -62,9 +62,9 @@ export const LandingPage = () => {
                     </p>
 
                     <div className="flex flex-col md:flex-row gap-4 justify-center pt-8">
-                        <Link to="/agendar">
+                        <Link to="/register">
                             <Button className="!px-12 !py-8 !text-lg !bg-yellow-500 shadow-[0_0_30px_rgba(var(--color-primary),0.2)]">
-                                Ver Demonstração <ArrowRight size={20} className="ml-2" />
+                                Criar Minha Barbearia <ArrowRight size={20} className="ml-2" />
                             </Button>
                         </Link>
                         <a href="#pricing">
