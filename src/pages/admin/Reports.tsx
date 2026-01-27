@@ -316,7 +316,7 @@ export const Reports = () => {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const msg = `Olá ${a.clientName}! Sou da ${metrics.details.salonName || 'Barbearia'}. Só enviando um lembrete rápido do seu horário às ${a.time} para o serviço ${a.serviceName}. Te espero aqui! ✂️`;
+                                                                const msg = `Olá ${a.clientName}! Sou da ${metrics.salonName}. Só enviando um lembrete rápido do seu horário às ${a.time} para o serviço ${a.serviceName}. Te espero aqui! ✂️`;
                                                                 window.open(`https://wa.me/${a.clientPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                                                             }}
                                                             className="px-3 py-1.5 bg-emerald-600/10 border border-emerald-600/20 text-[9px] font-black text-emerald-500 uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"

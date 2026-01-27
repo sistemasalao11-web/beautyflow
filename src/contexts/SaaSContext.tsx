@@ -314,6 +314,7 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             completionRate,
             retentionRate,
             activationScore,
+            salonName: settings?.salonName || 'Barbearia',
             churnRiskCount: churnRiskClients.length,
             averageTicket: completedAppts.length > 0 ? totalRevenue / completedAppts.length : 0,
             statusToday: {
@@ -336,6 +337,7 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                 appointments: appointments.map(a => ({
                     id: a.id,
                     client: a.clientName,
+                    clientPhone: a.clientPhone,
                     service: a.serviceName,
                     status: a.status,
                     time: a.time
