@@ -137,7 +137,7 @@ export const AdminLayout = () => {
                         </div>
                         <nav className="flex flex-col gap-6">
                             {[
-                                { to: '/admin', icon: Zap, label: 'Growth Engine' },
+                                { to: '/admin', icon: Zap, label: 'Growth Engine', hidden: !permissions.isPlatformOwner },
                                 { to: '/admin/reports', icon: BarChartIcon, label: 'Performance' },
                                 { to: '/admin/agenda', icon: Calendar, label: 'Agenda Viva' },
                                 { to: '/admin/services', icon: LayoutDashboard, label: 'Serviços' },
@@ -145,17 +145,19 @@ export const AdminLayout = () => {
                                 { to: '/admin/customers', icon: Users, label: 'Clientes (CRM)' },
                                 ...(permissions.canAccessInventory ? [{ to: '/admin/inventory', icon: Package, label: 'Inventário' }] : []),
                                 { to: '/admin/settings', icon: Settings, label: 'Preferências' },
-                            ].map((item) => (
-                                <Link
-                                    key={item.to}
-                                    to={item.to}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`flex items-center gap-4 px-6 py-4 uppercase tracking-widest text-xs font-black ${location.pathname === item.to ? 'text-yellow-500 bg-yellow-500/10' : 'text-zinc-500'}`}
-                                >
-                                    <item.icon size={20} /> {item.label}
-                                </Link>
-                            ))}
-                        </nav>
+                            ].map((item) => {
+                                if (item.hidden) return null;
+                                return (
+                                    <Link
+                                        key={item.to}
+                                        to={item.to}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={`flex items-center gap-4 px-6 py-5 transition-all duration-300 uppercase tracking-widest text-xs rounded-none ${isActive(item.to)}`}
+                                    >
+                                        <item.icon size={20} /> {item.label}
+                                    </Link>
+                                );
+                            })}</nav>
                         <button
                             onClick={() => signOut()}
                             className="w-full flex items-center gap-4 px-6 py-8 text-red-500 uppercase text-xs font-black tracking-widest border-t border-white/5 mt-auto"
@@ -183,9 +185,11 @@ export const AdminLayout = () => {
                 <nav className="space-y-4 flex-1">
                     <span className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.4em] block mb-6 px-4">Menu Principal</span>
 
-                    <Link to="/admin" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin')}`}>
-                        <Zap size={18} /> Growth Engine
-                    </Link>
+                    {permissions.isPlatformOwner && (
+                        <Link to="/admin" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin')}`}>
+                            <Zap size={18} /> Growth Engine
+                        </Link>
+                    )}
 
                     <Link to="/admin/reports" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/reports')}`}>
                         <BarChartIcon size={18} /> Performance

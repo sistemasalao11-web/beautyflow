@@ -356,9 +356,10 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             isElite: effectivePlan === 'elite',
             isTrial,
             isTrialExpired,
-            trialDaysRemaining
+            trialDaysRemaining,
+            isPlatformOwner: user?.email === 'olinad986@gmail.com' // Você como dono do SaaS
         };
-    }, [settings?.planType, salon?.created_at, salon?.payment_status]);
+    }, [settings?.planType, salon?.created_at, salon?.payment_status, user?.email]);
 
     const value = {
         salon, appointments, products, professionals, services, categories, sales, clients, settings,
