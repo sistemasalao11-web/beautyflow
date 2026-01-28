@@ -47,10 +47,13 @@ interface SaaSContextType {
         addClient: (c: any) => Promise<any>;
         updateClient: (id: string, c: any) => Promise<any>;
         removeClient: (id: string) => Promise<void>;
+        updateClientPoints: (id: string, points: number) => Promise<void>;
         addConsumptionItem: (appointmentId: string, item: any) => Promise<void>;
         completeAppointment: (appointmentId: string, paymentMethod: string, discount?: number, pointsRedeemed?: number) => Promise<boolean>;
         activatePlan: (paymentId: string) => Promise<void>;
+        logNotification: (apptId: string, type: string) => Promise<void>;
     };
+    notificationLogs: any[];
 }
 
 const SaaSContext = createContext<SaaSContextType | undefined>(undefined);
@@ -99,6 +102,7 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
     const [sales, setSales] = useState<Sale[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const [notificationLogs, setNotificationLogs] = useState<any[]>([]);
 
     const fetchData = useCallback(async () => {
         if (authLoading) {
@@ -118,9 +122,10 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
         try {
             let salonData: any = null;
+            const isPublicBooking = !!slug && !user;
 
             if (user) {
-                // Issue 3 fix: Always use limit(1) to prevent PGRST116
+                // Admin Mode: Fetch from 'salons' table
                 const { data, error: sError } = await supabase
                     .from('salons')
                     .select('*')
@@ -137,8 +142,9 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     return;
                 }
             } else if (slug) {
+                // Public Mode: Use the View to bypass direct salon access restrictions
                 const { data, error: sError } = await supabase
-                    .from('salons')
+                    .from('salons_public_view')
                     .select('*')
                     .eq('slug', slug)
                     .limit(1);
@@ -154,32 +160,49 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
             console.log('[BOOT] Tenant resolved:', salonData.name);
             setSalon(salonData);
+
+            // Map settings consistently
+            const rawSettings = salonData.settings || {};
             setSettings({
                 salonName: salonData.name,
                 whatsapp: salonData.whatsapp || '',
-                messageTemplate: salonData.settings?.messageTemplate || '',
+                messageTemplate: rawSettings.messageTemplate || '',
                 address: salonData.address || '',
                 themeColor: salonData.theme_color || '#EAB308',
                 themeSecondaryColor: salonData.theme_secondary_color || '#52525b',
                 themeBgColor: salonData.theme_bg_color || '#09090b',
-                operatingHours: salonData.settings?.operatingHours || [],
+                operatingHours: rawSettings.operatingHours || salonData.operating_hours || [],
                 logoUrl: salonData.logo_url,
-                saasDiscount: salonData.settings?.saasDiscount || 0,
+                saasDiscount: rawSettings.saasDiscount || 0,
                 planType: salonData.plan_type || 'iniciante',
-                slug: salonData.slug
+                slug: salonData.slug,
+                fidelityRules: rawSettings.fidelityRules || { type: 'value', pointsPerUnit: 1 }
             });
 
             const sId = salonData.id;
-            console.log('[BOOT] Fetching ecosystem data for:', sId);
-            const [appts, prods, profs, servs, cats, sles, clnts] = await Promise.all([
+            console.log('[BOOT] Fetching ecosystem data for:', sId, 'Public Mode:', isPublicBooking);
+
+            // Fetch shared data (Public & Admin)
+            const [appts, prods, profs, servs, cats] = await Promise.all([
                 supabase.from('appointments').select('*, clients(name, phone), services(name, price), professionals(name)').eq('salon_id', sId).order('date', { ascending: false }),
-                supabase.from('products').select('*, categories(name)').eq('salon_id', sId),
+                isPublicBooking ? Promise.resolve({ data: [] }) : supabase.from('products').select('*, categories(name)').eq('salon_id', sId),
                 supabase.from('professionals').select('*').eq('salon_id', sId),
                 supabase.from('services').select('*, categories(name)').eq('salon_id', sId),
-                supabase.from('categories').select('*').eq('salon_id', sId),
-                supabase.from('sales').select('*').eq('salon_id', sId),
-                supabase.from('clients').select('*').eq('salon_id', sId)
+                supabase.from('categories').select('*').eq('salon_id', sId)
             ]);
+
+            // Fetch admin-only data
+            let sles: any = { data: [] };
+            let clnts: any = { data: [] };
+            let nlogs: any = { data: [] };
+
+            if (!isPublicBooking) {
+                [sles, clnts, nlogs] = await Promise.all([
+                    supabase.from('sales').select('*').eq('salon_id', sId),
+                    supabase.from('clients').select('*').eq('salon_id', sId),
+                    supabase.from('notification_logs').select('*').eq('salon_id', sId)
+                ]);
+            }
 
             setAppointments((appts.data || []).map(a => {
                 const frontend = mapToFrontend(a);
@@ -195,12 +218,14 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     professionalName: a.professionals?.name || a.professional_name || 'Profissional'
                 };
             }));
+
             setProducts((prods.data || []).map(p => ({ ...mapToFrontend(p), categoryName: p.categories?.name })));
             setServices((servs.data || []).map(s => ({ ...mapToFrontend(s), categoryName: s.categories?.name })));
             setProfessionals((profs.data || []).map(mapToFrontend));
             setCategories((cats.data || []).map(mapToFrontend));
             setSales((sles.data || []).map(mapToFrontend));
             setClients((clnts.data || []).map(mapToFrontend));
+            setNotificationLogs((nlogs.data || []).map(mapToFrontend));
 
             console.log('[BOOT] Ecosystem READY.');
             setStatus('ready');
@@ -236,18 +261,8 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             .on('postgres_changes', { event: '*', schema: 'public', filter: `salon_id=eq.${salon.id}` }, fetchData)
             .subscribe();
 
-        // --- MOTOR DE AUTOMAÇÃO WHATSAPP ---
-        const runAutomation = async () => {
-            const { processAutomations } = await import('../services/automation');
-            processAutomations(salon.id);
-        };
-
-        runAutomation(); // Roda ao carregar
-        const interval = setInterval(runAutomation, 30 * 60 * 1000); // Roda a cada 30 min
-
         return () => {
             sub.unsubscribe();
-            clearInterval(interval);
         };
     }, [salon?.id, fetchData]);
 
@@ -386,7 +401,7 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
     }, [settings?.planType, salon?.created_at, salon?.payment_status, user?.email]);
 
     const value = {
-        salon, appointments, products, professionals, services, categories, sales, clients, settings,
+        salon, appointments, products, professionals, services, categories, sales, clients, settings, notificationLogs,
         loading: status === 'loading' || status === 'syncing',
         status,
         error,
@@ -423,28 +438,7 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             updateProduct: (id: string, p: any) => upsert('products', { ...p, id }),
             removeProduct: (id: string) => remove('products', id),
             addAppointment: async (a: any) => {
-                const result = await upsert('appointments', a);
-
-                // DISPARO WHATSAPP (CONFIRMAÇÃO IMEDIATA)
-                if (result && result.id) {
-                    try {
-                        const { sendWhatsApp, formatWhatsAppPhone } = await import('../services/whatsapp');
-
-                        const clientName = result.clientName || a.clientName || 'Cliente';
-                        const serviceName = result.serviceName || a.serviceName || 'Serviço';
-                        const professionalName = result.professionalName || a.professionalName || 'Profissional';
-                        const phone = formatWhatsAppPhone(result.clientPhone || a.clientPhone || '');
-
-                        if (phone) {
-                            const message = `Fala, ${clientName}!\nSeu horário para ${serviceName} com ${professionalName} dia ${result.date} às ${result.time} está confirmado! ✂️\n\nQualquer imprevisto é só avisar por aqui.`;
-                            sendWhatsApp(phone, message);
-                        }
-                    } catch (err) {
-                        console.warn('[AUTOMATION] Falha ao disparar confirmação:', err);
-                    }
-                }
-
-                return result;
+                return await upsert('appointments', a);
             },
             updateStatus: async (id: string, statusText: string) => {
                 const { error: updError } = await supabase.from('appointments').update({ status: statusText }).eq('id', id);
@@ -453,6 +447,10 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             addClient: (c: any) => upsert('clients', c),
             updateClient: (id: string, c: any) => upsert('clients', { ...c, id }),
             removeClient: (id: string) => remove('clients', id),
+            updateClientPoints: async (id: string, points: number) => {
+                const { error: updError } = await supabase.from('clients').update({ fidelity_points: points }).eq('id', id);
+                if (updError) toast.error('Erro ao atualizar pontos'); else fetchData();
+            },
             addConsumptionItem: async (appointmentId: string, item: any) => {
                 const appt = appointments.find(a => a.id === appointmentId);
                 if (!appt) return;
@@ -477,6 +475,16 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             activatePlan: async (paymentId: string) => {
                 if (!salon) return;
                 await supabase.from('salons').update({ payment_status: 'approved', last_payment_id: paymentId, plan_type: 'profissional' }).eq('id', salon.id);
+                fetchData();
+            },
+            logNotification: async (apptId: string, type: string) => {
+                if (!salon) return;
+                await supabase.from('notification_logs').insert({
+                    appointment_id: apptId,
+                    salon_id: salon.id,
+                    type,
+                    status: 'sent'
+                });
                 fetchData();
             }
         }

@@ -1,8 +1,8 @@
 /**
- * SERVIÇO DE MENSAGERIA WHATSAPP (MVP - CallMeBot)
+ * SERVIÇO DE WHATSAPP (CONTROLE MANUAL)
  * 
- * Este serviço é uma ponte temporária. Para trocar por uma API oficial,
- * basta alterar a lógica dentro da função sendWhatsApp.
+ * Gera links de 'wa.me' para que o barbeiro dispare as mensagens
+ * diretamente de seu próprio número.
  */
 
 /**
@@ -28,45 +28,21 @@ export const formatWhatsAppPhone = (phone: string): string => {
     return clean;
 };
 
-export const sendWhatsApp = async (phone: string, message: string): Promise<boolean> => {
-    const apiKey = import.meta.env.VITE_CALLMEBOT_API_KEY;
+/**
+ * Gera a URL do WhatsApp Web/App para disparo manual
+ */
+export const getWhatsAppUrl = (phone: string, message: string): string => {
+    const cleanPhone = formatWhatsAppPhone(phone);
+    if (!cleanPhone) return '';
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+};
 
-    if (!apiKey) {
-        console.warn('[WHATSAPP] API Key não configurada. Mensagem não enviada.');
-        return false;
-    }
-
-    try {
-        const cleanPhone = formatWhatsAppPhone(phone);
-
-        // Verifica se o número tem o tamanho mínimo (DDI 55 + DDD + Numero)
-        if (cleanPhone.length < 12) {
-            console.error('[WHATSAPP] Número de telefone inválido ou incompleto:', cleanPhone);
-            return false;
-        }
-
-        // Endpoint CallMeBot
-        const baseUrl = 'https://api.callmebot.com/whatsapp.php';
-        const params = new URLSearchParams({
-            phone: cleanPhone,
-            text: message,
-            apikey: apiKey
-        });
-
-        const url = `${baseUrl}?${params.toString()}`;
-
-        /**
-         * CALLMEBOT utiliza GET simples. 
-         * Usamos mode 'no-cors' para evitar bloqueios de segurança do navegador no frontend,
-         * já que é uma solução temporária de teste.
-         */
-        fetch(url, { mode: 'no-cors' })
-            .then(() => console.log('[WHATSAPP] Requisição enviada com sucesso para:', cleanPhone))
-            .catch(err => console.error('[WHATSAPP] Erro no disparo:', err));
-
-        return true;
-    } catch (error) {
-        console.error('[WHATSAPP] Falha crítica no serviço:', error);
-        return false;
+/**
+ * Abre o WhatsApp em uma nova aba
+ */
+export const openWhatsApp = (phone: string, message: string): void => {
+    const url = getWhatsAppUrl(phone, message);
+    if (url) {
+        window.open(url, '_blank');
     }
 };

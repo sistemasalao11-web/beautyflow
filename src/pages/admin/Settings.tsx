@@ -232,6 +232,54 @@ export const Settings = () => {
                         </div>
                     </Card>
 
+                    {/* Fidelity Rules */}
+                    <Card className="lg:col-span-2 border-white/5 bg-zinc-900/40 p-10">
+                        <div className="flex items-center gap-4 mb-10 text-yellow-500">
+                            <Trophy size={20} />
+                            <h2 className="text-xl font-black text-white uppercase tracking-tighter">Regras de Fidelidade</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-6">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] block">Modo de Acúmulo</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, fidelityRules: { ...formData.fidelityRules, type: 'value' } })}
+                                        className={`p-6 border text-center transition-all ${formData.fidelityRules?.type === 'value' ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/5 bg-zinc-950/20'}`}
+                                    >
+                                        <div className="text-sm font-black text-white uppercase mb-1">Por Valor</div>
+                                        <div className="text-[9px] text-zinc-500 uppercase font-black">R$ 1,00 = X Pontos</div>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, fidelityRules: { ...formData.fidelityRules, type: 'visit' } })}
+                                        className={`p-6 border text-center transition-all ${formData.fidelityRules?.type === 'visit' ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/5 bg-zinc-950/20'}`}
+                                    >
+                                        <div className="text-sm font-black text-white uppercase mb-1">Por Visita</div>
+                                        <div className="text-[9px] text-zinc-500 uppercase font-black">1 Corte = X Pontos</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] block">Pontos por {formData.fidelityRules?.type === 'value' ? 'Real (R$)' : 'Visita'}</label>
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="number"
+                                        value={formData.fidelityRules?.pointsPerUnit}
+                                        onChange={(e) => setFormData({ ...formData, fidelityRules: { ...formData.fidelityRules, pointsPerUnit: Number(e.target.value) } })}
+                                        className="input-premium flex-1 !text-2xl text-yellow-500 font-black"
+                                    />
+                                    <div className="text-zinc-500 font-black uppercase text-xs tracking-widest">PTS</div>
+                                </div>
+                                <p className="text-[9px] text-zinc-600 font-bold uppercase leading-relaxed">
+                                    Configure quanto vale cada {formData.fidelityRules?.type === 'value' ? 'real gasto' : 'atendimento'} para seus clientes acumularem prêmios.
+                                </p>
+                            </div>
+                        </div>
+                    </Card>
+
                     {/* Public Booking Link */}
                     <Card className="lg:col-span-2 border-yellow-500/20 bg-yellow-500/[0.03] p-10 overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-8 opacity-5">

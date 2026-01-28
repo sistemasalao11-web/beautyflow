@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { openWhatsApp } from '../../services/whatsapp';
 import type { Appointment, Product, Professional, Service, Client } from '../../types/saas';
 
 export const CalendarView = () => {
@@ -158,7 +159,7 @@ export const CalendarView = () => {
             const selectedService = services.find((s: Service) => s.id === newApptData.serviceId);
             const selectedProf = professionals.find((p: Professional) => p.id === newApptData.professionalId);
 
-            await actions.addAppointment({
+            const result = await actions.addAppointment({
                 salonId: 'current',
                 clientId: finalClientId,
                 clientName: finalClientName,
@@ -172,6 +173,14 @@ export const CalendarView = () => {
                 time: newApptData.time,
                 status: 'pending'
             });
+
+            if (result && result.id && finalClientPhone) {
+                const dateFmt = format(new Date(newApptData.date), "dd/MM", { locale: ptBR });
+                const message = `Fala, ${finalClientName}! ✂️\nSeu horário para ${selectedService?.name} com ${selectedProf?.name} dia ${dateFmt} às ${newApptData.time} está confirmado! 👋`;
+                openWhatsApp(finalClientPhone, message);
+                await actions.logNotification(result.id, 'confirmation');
+            }
+
             setIsNewApptOpen(false);
         } catch (err) {
             console.error(err);

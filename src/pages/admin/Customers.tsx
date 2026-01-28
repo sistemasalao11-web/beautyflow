@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSaaS } from '../../hooks/useSaaS';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import {
@@ -16,8 +17,10 @@ import {
     Trash2,
     Calendar
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getWhatsAppUrl } from '../../services/whatsapp';
+import type { Appointment, Client } from '../../types/saas';
 
 export const Customers = () => {
     const { clients, appointments, actions, loading } = useSaaS();
@@ -25,11 +28,31 @@ export const Customers = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<any>(null);
+    const [activeFilter, setActiveFilter] = useState<'all' | 'vip' | 'inactive'>('all');
 
-    const filteredClients = clients.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.phone?.includes(searchTerm)
-    );
+    const filteredClients = clients.filter((c: Client) => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone?.includes(searchTerm);
+        if (!matchesSearch) return false;
+
+        if (activeFilter === 'vip') return c.totalSpent > 500;
+        if (activeFilter === 'inactive') {
+            const lastAppt = appointments.find((a: Appointment) => a.clientId === c.id);
+            if (!lastAppt) return true;
+            return new Date(lastAppt.date) < subDays(new Date(), 30);
+        }
+        return true;
+    });
+
+    const handleBulkZap = () => {
+        const phones = filteredClients.filter((c: Client) => c.phone).map((c: Client) => c.phone);
+        if (phones.length === 0) return toast.error('Nenhum cliente com telefone filtrado.');
+
+        const message = "Olá! Passando para te avisar das nossas novidades na barbearia! ✂️";
+        // Open the first one or just inform
+        toast.success(`${phones.length} clientes filtrados. Iniciando primeiro disparo...`);
+        const url = getWhatsAppUrl(phones[0], message);
+        window.open(url, '_blank');
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,6 +62,7 @@ export const Customers = () => {
             phone: formData.get('telefone') as string,
             email: formData.get('email') as string,
             technicalNotes: formData.get('notas_tecnicas') as string,
+            fidelityPoints: Number(formData.get('pontos') || 0),
         };
 
         if (!clientData.name) return;
@@ -76,21 +100,48 @@ export const Customers = () => {
                 </Button>
             </header>
 
-            {/* Search Bar */}
-            <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-yellow-500 transition-colors" size={20} />
-                <input
-                    type="text"
-                    placeholder="BUSCAR POR NOME OU TELEFONE..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-zinc-900/40 border border-white/5 py-6 pl-16 pr-8 text-xs font-black uppercase tracking-widest focus:border-yellow-500/50 focus:bg-zinc-900 transition-all outline-none"
-                />
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex bg-zinc-900/60 p-1 border border-white/5 w-full md:w-auto">
+                    {[
+                        { id: 'all', label: 'Todos' },
+                        { id: 'vip', label: 'VIPs (R$ 500+)' },
+                        { id: 'inactive', label: 'Inativos (30d+)' }
+                    ].map(f => (
+                        <button
+                            key={f.id}
+                            onClick={() => setActiveFilter(f.id as any)}
+                            className={`flex-1 md:flex-none px-6 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === f.id ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20 px-8' : 'text-zinc-500 hover:text-white'
+                                }`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-4 w-full md:w-auto">
+                    <button
+                        onClick={handleBulkZap}
+                        className="flex-1 md:flex-none py-3 px-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-2"
+                    >
+                        <Phone size={14} /> Zap em Massa
+                    </button>
+                    <div className="relative group flex-1 md:w-80">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-yellow-500 transition-colors" size={16} />
+                        <input
+                            type="text"
+                            placeholder="BUSCAR CLIENTE..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-zinc-900/40 border border-white/5 py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:border-yellow-500/50 focus:bg-zinc-900 transition-all outline-none"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Clients Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredClients.map(client => (
+                {filteredClients.map((client: Client) => (
                     <Card
                         key={client.id}
                         className="border-white/5 bg-zinc-900/60 p-8 space-y-8 hover:border-yellow-500/30 transition-all group"
@@ -197,7 +248,7 @@ export const Customers = () => {
                                 <div className="text-center">
                                     <p className="text-[8px] text-sky-500 font-black uppercase tracking-widest mb-1">Total Cortes</p>
                                     <p className="text-sm font-black text-white leading-none">
-                                        {appointments.filter(a => a.clientId === selectedClient.id && a.status === 'completed').length}
+                                        {appointments.filter((a: Appointment) => a.clientId === selectedClient.id && a.status === 'completed').length}
                                     </p>
                                 </div>
                             </div>
@@ -221,6 +272,18 @@ export const Customers = () => {
                                         defaultValue={selectedClient?.phone}
                                         className="input-premium"
                                         placeholder="5511..."
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Award size={12} className="text-yellow-500" />
+                                        <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Ajustar Pontos Fidelidade</label>
+                                    </div>
+                                    <input
+                                        name="pontos"
+                                        type="number"
+                                        defaultValue={selectedClient?.fidelityPoints || 0}
+                                        className="input-premium border-yellow-500/30"
                                     />
                                 </div>
                                 <div className="md:col-span-2 space-y-2">

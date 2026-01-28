@@ -120,6 +120,10 @@ export interface AppSettings {
     saasDiscount?: number;
     planType: 'iniciante' | 'profissional' | 'elite';
     slug: string;
+    fidelityRules?: {
+        type: 'value' | 'visit';
+        pointsPerUnit: number; // For 'value' it's points per R$, for 'visit' it's points per visit
+    };
 }
 
 export interface OperatingHour {

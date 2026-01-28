@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     LayoutDashboard,
     Settings,
@@ -14,19 +14,79 @@ import {
     X,
     Lock,
     Zap,
+    Copy,
     BarChart3 as BarChartIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSaaS } from '../hooks/useSaaS';
 import { toast } from 'react-hot-toast';
+import { NotificationCenter } from '../components/NotificationCenter';
+import { addHours, addDays, isWithinInterval, parseISO } from 'date-fns';
+import type { Appointment } from '../types/saas';
 
 export const AdminLayout = () => {
     const location = useLocation();
     const { signOut } = useAuth();
-    const { permissions, actions, status, error: saasError } = useSaaS();
+    const { permissions, actions, status, error: saasError, appointments, settings, notificationLogs } = useSaaS();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+
+    // Notification Logic
+    const { pendingNotifications, pendingNotificationsCount } = useMemo(() => {
+        if (!appointments || !notificationLogs) return { pendingNotifications: [], pendingNotificationsCount: 0 };
+
+        const now = new Date();
+        const t24h_limit = addDays(now, 1);
+        const t2h_limit = addHours(now, 2);
+
+        const pending = appointments.filter((appt: Appointment) => {
+            if (appt.status === 'cancelled' || appt.status === 'completed') return false;
+
+            const apptDateTime = parseISO(`${appt.date}T${appt.time}`);
+
+            // 1. Confirmations (New appointments not yet notified)
+            const hasConfirmation = notificationLogs.some((log: any) => log.appointmentId === appt.id && log.type === 'confirmation');
+            if (!hasConfirmation) return true;
+
+            // 2. T-24h Reminder
+            const isT24h = isWithinInterval(apptDateTime, {
+                start: addHours(t24h_limit, -1),
+                end: t24h_limit
+            });
+            const hasT24hLog = notificationLogs.some((log: any) => log.appointmentId === appt.id && log.type === 'remind_24h');
+            if (isT24h && !hasT24hLog) return true;
+
+            // 3. T-2h Reminder
+            const isT2h = isWithinInterval(apptDateTime, {
+                start: now,
+                end: t2h_limit
+            });
+            const hasT2hLog = notificationLogs.some((log: any) => log.appointmentId === appt.id && log.type === 'remind_2h');
+            if (isT2h && !hasT2hLog) return true;
+
+            return false;
+        }).map((appt: Appointment) => {
+            const apptDateTime = parseISO(`${appt.date}T${appt.time}`);
+            const hasConfirmation = notificationLogs.some((log: any) => log.appointmentId === appt.id && log.type === 'confirmation');
+            const isT24h = isWithinInterval(apptDateTime, { start: addHours(t24h_limit, -1), end: t24h_limit });
+            const isT2h = isWithinInterval(apptDateTime, { start: now, end: t2h_limit });
+
+            let type = 'confirmation';
+            if (hasConfirmation) {
+                if (isT2h) type = 'remind_2h';
+                else if (isT24h) type = 'remind_24h';
+            }
+
+            return { ...appt, notificationType: type };
+        });
+
+        return {
+            pendingNotifications: pending,
+            pendingNotificationsCount: pending.length
+        };
+    }, [appointments, notificationLogs]);
 
     // 1. ALL HOOKS MUST BE DECLARED AT THE TOP
     useEffect(() => {
@@ -219,6 +279,19 @@ export const AdminLayout = () => {
 
                     <div className="pt-10 pb-4">
                         <span className="text-[9px] text-zinc-700 font-black uppercase tracking-[0.4em] block mb-6 px-4">Configurações</span>
+
+                        <button
+                            onClick={() => {
+                                const url = `https://beautyflow.vercel.app/reserva/${settings?.slug}`;
+                                navigator.clipboard.writeText(url);
+                                toast.success('Link de agendamento copiado!', { icon: '🔗' });
+                            }}
+                            className="w-full flex items-center justify-between px-6 py-4 mb-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all group"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-widest">Link de Agendamento</span>
+                            <Copy size={14} />
+                        </button>
+
                         <Link to="/admin/settings" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/settings')}`}>
                             <Settings size={18} /> Preferências
                         </Link>
@@ -257,13 +330,25 @@ export const AdminLayout = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4 md:gap-6">
-                        <button
-                            onClick={() => toast.success('Todas as notificações foram lidas.', { icon: '🔔' })}
-                            className="p-2 text-zinc-500 hover:text-white relative transition-colors"
-                        >
-                            <Bell size={18} />
-                            <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-500 rounded-full border-2 border-zinc-950"></span>
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotificationOpen(true)}
+                                className="p-2 text-zinc-500 hover:text-white transition-colors"
+                            >
+                                <Bell size={18} />
+                                {pendingNotificationsCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-zinc-950 animate-bounce">
+                                        {pendingNotificationsCount}
+                                    </span>
+                                )}
+                            </button>
+                            {isNotificationOpen && (
+                                <NotificationCenter
+                                    onClose={() => setIsNotificationOpen(false)}
+                                    pendingItems={pendingNotifications}
+                                />
+                            )}
+                        </div>
                         <div className="h-6 md:h-8 w-[1px] bg-white/5"></div>
                         <div className="flex items-center gap-3">
                             <div className="hidden sm:block text-right">

@@ -8,6 +8,8 @@ import {
     CheckCircle2
 } from 'lucide-react';
 import { format, isAfter, parse, isToday } from 'date-fns';
+import { openWhatsApp } from '../../services/whatsapp';
+import type { Appointment, Professional, Service } from '../../types/saas';
 
 
 
@@ -25,8 +27,8 @@ export const ClientBooking = () => {
         time: ''
     });
 
-    const selectedService = services.find(s => s.id === selection.serviceId);
-    const selectedProf = professionals.find(p => p.id === selection.professionalId);
+    const selectedService = services.find((s: Service) => s.id === selection.serviceId);
+    const selectedProf = professionals.find((p: Professional) => p.id === selection.professionalId);
 
     // Smart Availability Logic
     const availableSlots = useMemo(() => {
@@ -59,7 +61,7 @@ export const ClientBooking = () => {
             const isPast = isToday(parse(selection.date, 'yyyy-MM-dd', new Date())) && !isAfter(slotDate, now);
 
             // 2. Is it already booked?
-            const isBooked = appointments.some(appt =>
+            const isBooked = appointments.some((appt: Appointment) =>
                 appt.date === selection.date &&
                 appt.time.substring(0, 5) === time &&
                 appt.status !== 'cancelled'
@@ -95,12 +97,12 @@ export const ClientBooking = () => {
 ⏰ *Horário:* ${selection.time}
 💰 *Valor:* R$ ${selectedService.price.toFixed(2)}`;
 
-            const whatsappUrl = `https://wa.me/${(settings?.whatsapp || '').replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`;
             setIsSuccess(true);
 
 
             setTimeout(() => {
-                window.open(whatsappUrl, '_blank');
+                const phone = (settings?.whatsapp || '').replace(/\D/g, '');
+                openWhatsApp(phone, whatsappMessage);
             }, 2000);
 
         } catch (err) {
@@ -175,7 +177,7 @@ export const ClientBooking = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {services.map(service => (
+                                {services.map((service: Service) => (
                                     <button
                                         key={service.id}
                                         onClick={() => { setSelection({ ...selection, serviceId: service.id }); setStep(2); }}
@@ -202,7 +204,7 @@ export const ClientBooking = () => {
                         </button>
                         <h2 className="text-5xl font-black text-white uppercase tracking-tighter leading-none">Quem vai <br /><span className="text-yellow-500">Atender?</span></h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {professionals.map(prof => (
+                            {professionals.map((prof: Professional) => (
                                 <button
                                     key={prof.id}
                                     onClick={() => { setSelection({ ...selection, professionalId: prof.id }); setStep(3); }}
