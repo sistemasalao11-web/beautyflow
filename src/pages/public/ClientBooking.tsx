@@ -359,6 +359,15 @@ export const ClientBooking = () => {
                                 <p className="text-center text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-6">
                                     Ao confirmar, você concorda com nossos <a href="/termos" target="_blank" className="text-yellow-500 hover:underline">Termos de Uso</a> e <a href="/privacidade" target="_blank" className="text-yellow-500 hover:underline">Política de Privacidade</a>.
                                 </p>
+
+                                <div className="mt-12 pt-12 border-t border-white/5 text-center">
+                                    <a
+                                        href="/login"
+                                        className="text-[8px] text-zinc-700 hover:text-zinc-400 font-black uppercase tracking-[0.3em] transition-colors"
+                                    >
+                                        Sou o dono do salão • Entrar no Painel
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </section>

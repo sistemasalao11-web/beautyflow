@@ -180,10 +180,10 @@ export const AdminLayout = () => {
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] md:hidden animate-fade-in"
+                    className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] md:hidden animate-fade-in overflow-y-auto"
                     onClick={() => setIsMobileMenuOpen(false)}
                 >
-                    <div className="p-10 space-y-8" onClick={e => e.stopPropagation()}>
+                    <div className="p-8 space-y-8 min-h-screen flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-12">
                             <div className="flex items-center gap-4">
                                 <div className="bg-yellow-500 p-2 text-black">
@@ -201,7 +201,7 @@ export const AdminLayout = () => {
                                 { to: '/admin/reports', icon: BarChartIcon, label: 'Performance' },
                                 { to: '/admin/agenda', icon: Calendar, label: 'Agenda Viva' },
                                 { to: '/admin/services', icon: LayoutDashboard, label: 'Serviços' },
-                                { to: '/admin/barbers', icon: Users, label: 'Especialistas' },
+                                { to: '/admin/barbers', icon: Scissors, label: 'Barbeiros' },
                                 { to: '/admin/customers', icon: Users, label: 'Clientes (CRM)' },
                                 ...(permissions.canAccessInventory ? [{ to: '/admin/inventory', icon: Package, label: 'Inventário' }] : []),
                                 { to: '/admin/settings', icon: Settings, label: 'Preferências' },
@@ -218,12 +218,29 @@ export const AdminLayout = () => {
                                     </Link>
                                 );
                             })}</nav>
-                        <button
-                            onClick={() => signOut()}
-                            className="w-full flex items-center gap-4 px-6 py-8 text-red-500 uppercase text-xs font-black tracking-widest border-t border-white/5 mt-auto"
-                        >
-                            <LogOut size={20} /> Sair do Painel
-                        </button>
+
+                        <div className="space-y-4 pt-4 mt-auto">
+                            <button
+                                onClick={() => {
+                                    const baseUrl = window.location.origin;
+                                    const url = `${baseUrl}/reserva/${settings?.slug}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success('Link de agendamento copiado!', { icon: '🔗' });
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className="w-full flex items-center justify-between px-6 py-5 bg-yellow-500 text-black font-black uppercase tracking-widest text-[10px]"
+                            >
+                                <span>Link de Agendamento</span>
+                                <Copy size={16} />
+                            </button>
+
+                            <button
+                                onClick={() => signOut()}
+                                className="w-full flex items-center gap-4 px-6 py-5 text-red-500 uppercase text-xs font-black tracking-widest bg-white/5"
+                            >
+                                <LogOut size={20} /> Sair do Painel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -264,7 +281,7 @@ export const AdminLayout = () => {
                     </Link>
 
                     <Link to="/admin/barbers" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/barbers')}`}>
-                        <Users size={18} /> Especialistas
+                        <Scissors size={18} /> Barbeiros
                     </Link>
 
                     <Link to="/admin/customers" className={`flex items-center gap-4 px-6 py-4 transition-all duration-300 uppercase tracking-widest text-[10px] rounded-none ${isActive('/admin/customers')}`}>
@@ -321,7 +338,7 @@ export const AdminLayout = () => {
                     <div className="flex items-center gap-4 md:gap-2">
                         <button
                             onClick={() => setIsMobileMenuOpen(true)}
-                            className="md:hidden p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
+                            className="md:hidden p-3 -ml-2 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all border border-yellow-500/20"
                         >
                             <Menu size={24} />
                         </button>

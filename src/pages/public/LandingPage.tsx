@@ -36,10 +36,14 @@ export const LandingPage = () => {
                         </div>
                         <span className="font-black uppercase tracking-tighter text-xl">Beauty<span className="text-yellow-500">Flow</span></span>
                     </div>
-                    <div className="hidden md:flex gap-8 items-center text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        <a href="#features" className="hover:text-yellow-500 transition-colors">Funcionalidades</a>
-                        <a href="#pricing" className="hover:text-yellow-500 transition-colors">Preços</a>
-                        <Link to="/admin" className="px-4 py-2 border border-white/10 text-white hover:bg-white/5 transition-all">Área do Barbeiro</Link>
+                    <div className="flex gap-4 items-center">
+                        <Link to="/admin" className="px-3 py-1.5 border border-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all text-[10px] font-black uppercase tracking-widest bg-yellow-500/5">
+                            Área do Barbeiro
+                        </Link>
+                        <div className="hidden md:flex gap-8 items-center text-xs font-bold uppercase tracking-widest text-zinc-400">
+                            <a href="#features" className="hover:text-yellow-500 transition-colors">Funcionalidades</a>
+                            <a href="#pricing" className="hover:text-yellow-500 transition-colors">Preços</a>
+                        </div>
                     </div>
                 </div>
             </nav>
