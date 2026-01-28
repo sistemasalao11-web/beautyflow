@@ -27,7 +27,8 @@ export const Settings = () => {
     const [saved, setSaved] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const publicUrl = `https://beautyflow.vercel.app/reserva/${settings?.slug}`;
+    const baseUrl = window.location.origin;
+    const publicUrl = `${baseUrl}/reserva/${settings?.slug}`;
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(publicUrl);
@@ -291,8 +292,8 @@ export const Settings = () => {
                                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Seu Link de Agendamento</h3>
                                     <p className="text-[10px] text-yellow-500/60 font-black uppercase tracking-widest mt-1">Este é o link que você deve colocar na bio do Instagram</p>
                                 </div>
-                                <div className="flex items-center gap-3 bg-black/60 p-4 border border-white/5 font-mono text-xs text-zinc-400 select-all">
-                                    <span className="hidden sm:inline">beautyflow.app/reserva/</span>
+                                <div className="flex items-center gap-3 bg-black/60 p-4 border border-white/5 font-mono text-[9px] text-zinc-400 select-all overflow-hidden text-ellipsis whitespace-nowrap">
+                                    <span className="hidden sm:inline">{baseUrl}/reserva/</span>
                                     <span className="text-yellow-500 font-bold">{formData.slug}</span>
                                 </div>
                             </div>

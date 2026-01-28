@@ -282,7 +282,8 @@ export const AdminLayout = () => {
 
                         <button
                             onClick={() => {
-                                const url = `https://beautyflow.vercel.app/reserva/${settings?.slug}`;
+                                const baseUrl = window.location.origin;
+                                const url = `${baseUrl}/reserva/${settings?.slug}`;
                                 navigator.clipboard.writeText(url);
                                 toast.success('Link de agendamento copiado!', { icon: '🔗' });
                             }}
