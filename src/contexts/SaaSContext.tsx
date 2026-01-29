@@ -281,9 +281,18 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                 query = supabase.from(table).insert(dbData);
             }
 
-            const { data: result, error: dbError } = await query.select().limit(1);
+            // SEGURANÇA: Se for usuário anônimo (visitante agendando), NÃO fazemos select.
+            // Isso evita erro de RLS e protege os dados recém-criados de leitura pública.
+            if (!user) {
+                const { error: dbError } = await query;
+                if (dbError) throw dbError;
+                return null; // Frontend público não precisa do retorno
+            }
 
+            // Para admin, retornamos os dados atualizados para atualizar a UI
+            const { data: result, error: dbError } = await query.select().limit(1);
             if (dbError) throw dbError;
+
             toast.success('Salvo!', { id: loadingToast });
             fetchData();
             return mapToFrontend(result?.[0]);

@@ -1,5 +1,5 @@
 -- ==========================================
--- MASTER SCHEMA REGULARIZATION: BarberSaaS
+-- MASTER SCHEMA REGULARIZATION: BarberSaaS (PRODUCTION SECURE)
 -- ==========================================
 
 -- 0. EXTENSÕES E FUNÇÕES AUXILIARES
@@ -16,11 +16,9 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 1. ESTRUTURA (TABELAS)
--- O bloco de DROP TABLE foi removido para evitar deleção acidental de dados em produção.
-
 
 -- 2. TABELA: SALONS
-CREATE TABLE salons (
+CREATE TABLE IF NOT EXISTS salons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     owner_id UUID NOT NULL UNIQUE,
     name TEXT NOT NULL,
@@ -52,7 +50,7 @@ CREATE TABLE salons (
 );
 
 -- 3. TABELA: CATEGORIES
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -61,7 +59,7 @@ CREATE TABLE categories (
 );
 
 -- 4. TABELA: SERVICES
-CREATE TABLE services (
+CREATE TABLE IF NOT EXISTS services (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
@@ -75,7 +73,7 @@ CREATE TABLE services (
 );
 
 -- 5. TABELA: PROFESSIONALS
-CREATE TABLE professionals (
+CREATE TABLE IF NOT EXISTS professionals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -91,7 +89,7 @@ CREATE TABLE professionals (
 );
 
 -- 6. TABELA: PRODUCTS
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
@@ -106,7 +104,7 @@ CREATE TABLE products (
 );
 
 -- 7. TABELA: CLIENTS (CRM)
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     user_id UUID, -- Opcional: link com tabela de usuários auth se houver login de cliente
@@ -120,7 +118,7 @@ CREATE TABLE clients (
 );
 
 -- 8. TABELA: APPOINTMENTS
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
@@ -156,7 +154,7 @@ CREATE TABLE appointments (
 );
 
 
-CREATE INDEX idx_appointments_salon_date ON appointments (salon_id, date, time);
+CREATE INDEX IF NOT EXISTS idx_appointments_salon_date ON appointments (salon_id, date, time);
 
 
 -- ==========================================
@@ -260,11 +258,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- GATILHOS (DROP & CREATE para evitar erro de duplicação)
+DROP TRIGGER IF EXISTS trg_security_check ON appointments;
 CREATE TRIGGER trg_security_check
 BEFORE INSERT ON appointments
 FOR EACH ROW EXECUTE FUNCTION check_appointment_security();
 
 
+DROP TRIGGER IF EXISTS trg_complete_appointment ON appointments;
 CREATE TRIGGER trg_complete_appointment
 AFTER UPDATE ON appointments
 FOR EACH ROW EXECUTE FUNCTION handle_appointment_completion();
@@ -285,6 +286,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_notify_appointment ON appointments;
 CREATE TRIGGER trg_notify_appointment
 AFTER INSERT ON appointments
 FOR EACH ROW EXECUTE FUNCTION notify_new_appointment();
@@ -311,17 +313,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Aplicar Auditoria em Tabelas Críticas
-CREATE TRIGGER trg_audit_salons AFTER INSERT OR UPDATE OR DELETE ON salons FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
-CREATE TRIGGER trg_audit_appointments AFTER INSERT OR UPDATE OR DELETE ON appointments FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
-CREATE TRIGGER trg_audit_clients AFTER INSERT OR UPDATE OR DELETE ON clients FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
-CREATE TRIGGER trg_audit_professionals AFTER INSERT OR UPDATE OR DELETE ON professionals FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
-
-
-
-
+-- TABELAS AUXILIARES FALTANTES
 -- 9. TABELA: SALES (FATURAMENTO)
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
     appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
@@ -333,7 +327,7 @@ CREATE TABLE sales (
 );
 
 -- 10. TABELA: SALE_ITEMS
-CREATE TABLE sale_items (
+CREATE TABLE IF NOT EXISTS sale_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sale_id UUID REFERENCES sales(id) ON DELETE CASCADE,
     item_id UUID, -- Link para service_id ou product_id
@@ -343,17 +337,17 @@ CREATE TABLE sale_items (
     quantity INTEGER DEFAULT 1
 );
 
--- 11. TABELA: NOTIFICATION_LOGS (Auditoria de WhatsApp/SMS)
+-- 11. TABELA: NOTIFICATION_LOGS (UNIFICADA)
 CREATE TABLE IF NOT EXISTS notification_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     appointment_id UUID REFERENCES appointments(id) ON DELETE CASCADE,
     salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
-    recipient_phone TEXT NOT NULL,
-    message_content TEXT,
+    type TEXT NOT NULL, -- 'confirm', 'remind_24h', 'remind_2h'
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+    message_content TEXT,
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,
-    sent_at TIMESTAMP WITH TIME ZONE,
+    sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -368,6 +362,19 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     changed_by UUID DEFAULT auth.uid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Aplicar Auditoria em Tabelas Críticas
+DROP TRIGGER IF EXISTS trg_audit_salons ON salons;
+CREATE TRIGGER trg_audit_salons AFTER INSERT OR UPDATE OR DELETE ON salons FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
+
+DROP TRIGGER IF EXISTS trg_audit_appointments ON appointments;
+CREATE TRIGGER trg_audit_appointments AFTER INSERT OR UPDATE OR DELETE ON appointments FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
+
+DROP TRIGGER IF EXISTS trg_audit_clients ON clients;
+CREATE TRIGGER trg_audit_clients AFTER INSERT OR UPDATE OR DELETE ON clients FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
+
+DROP TRIGGER IF EXISTS trg_audit_professionals ON professionals;
+CREATE TRIGGER trg_audit_professionals AFTER INSERT OR UPDATE OR DELETE ON professionals FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
 
 
 
@@ -384,6 +391,8 @@ ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sale_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS) - POLÍTICAS REFINADAS
@@ -427,17 +436,27 @@ CREATE POLICY "Salons_Delete_Owner" ON salons FOR DELETE TO authenticated USING 
 
 -- TABELA: CATEGORIES
 DROP POLICY IF EXISTS "Admin_Categories" ON categories;
+DROP POLICY IF EXISTS "Categories_Owner_All" ON categories;
+DROP POLICY IF EXISTS "Categories_Public_Select" ON categories;
+
 CREATE POLICY "Categories_Owner_All" ON categories FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 CREATE POLICY "Categories_Public_Select" ON categories FOR SELECT TO anon, authenticated USING (true);
 
 
 -- TABELA: SERVICES
 DROP POLICY IF EXISTS "Admin_Services" ON services;
+DROP POLICY IF EXISTS "Services_Owner_All" ON services;
+DROP POLICY IF EXISTS "Services_Public_Select" ON services;
+
 CREATE POLICY "Services_Owner_All" ON services FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 CREATE POLICY "Services_Public_Select" ON services FOR SELECT TO anon, authenticated USING (true); -- Permitir ver serviços para agendar
 
 -- TABELA: PROFESSIONALS
 DROP POLICY IF EXISTS "Admin_Professionals" ON professionals;
+DROP POLICY IF EXISTS "Professionals_Owner_All" ON professionals;
+DROP POLICY IF EXISTS "Professionals_Self_Select" ON professionals;
+DROP POLICY IF EXISTS "Professionals_Public_Select" ON professionals;
+
 CREATE POLICY "Professionals_Owner_All" ON professionals FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 CREATE POLICY "Professionals_Self_Select" ON professionals FOR SELECT TO authenticated USING (email = auth.jwt()->>'email');
 CREATE POLICY "Professionals_Public_Select" ON professionals FOR SELECT TO anon, authenticated USING (true);
@@ -445,10 +464,14 @@ CREATE POLICY "Professionals_Public_Select" ON professionals FOR SELECT TO anon,
 
 -- TABELA: PRODUCTS
 DROP POLICY IF EXISTS "Admin_Products" ON products;
+DROP POLICY IF EXISTS "Products_Owner_All" ON products;
+
 CREATE POLICY "Products_Owner_All" ON products FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 
 -- TABELA: CLIENTS
 DROP POLICY IF EXISTS "Admin_Clients" ON clients;
+DROP POLICY IF EXISTS "Clients_Owner_All" ON clients;
+
 CREATE POLICY "Clients_Owner_All" ON clients FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 
 -- TABELA: APPOINTMENTS
@@ -460,13 +483,16 @@ DROP POLICY IF EXISTS "Appointments_Prof_Select" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Public_Insert" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Member_Select" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Member_Update" ON appointments;
+DROP POLICY IF EXISTS "Appointments_Owner_Delete" ON appointments;
+DROP POLICY IF EXISTS "Appointments_Public_Select" ON appointments;
 
 -- 1. Qualquer um pode agendar (Inserir)
+-- CHECK (true) é aceitável aqui pois o visitante SÓ PODE INSERIR, NÃO LER.
+-- A segurança é garantida por NUNCA retornar o dado para ele.
 CREATE POLICY "Appointments_Public_Insert" ON appointments FOR INSERT TO anon, authenticated WITH CHECK (true); 
 
--- 2. Qualquer um pode ver o agendamento (Necessário para o .select() do Supabase funcionar após inserção)
--- Limitamos para que o visitante possa ver agendamentos do salão ativo ou via ID
-CREATE POLICY "Appointments_Public_Select" ON appointments FOR SELECT TO anon USING (true);
+-- 2. REMOVIDO: Appointments_Public_Select
+-- NENHUM SELECT PARA VISITANTE. Isso blinda o banco contra vazamento.
 
 -- 3. Donos e Funcionários veem tudo do seu salão
 CREATE POLICY "Appointments_Member_Select" ON appointments FOR SELECT TO authenticated USING (
@@ -486,27 +512,31 @@ CREATE POLICY "Appointments_Owner_Delete" ON appointments FOR DELETE TO authenti
 
 -- TABELA: SALES
 DROP POLICY IF EXISTS "Admin_Sales" ON sales;
+DROP POLICY IF EXISTS "Sales_Owner_All" ON sales;
+
 CREATE POLICY "Sales_Owner_All" ON sales FOR ALL TO authenticated USING (is_salon_owner(salon_id)) WITH CHECK (is_salon_owner(salon_id));
 
 -- TABELA: SALE_ITEMS
 DROP POLICY IF EXISTS "Admin_SaleItems" ON sale_items;
+DROP POLICY IF EXISTS "SaleItems_Owner_All" ON sale_items;
+
 CREATE POLICY "SaleItems_Owner_All" ON sale_items FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM sales WHERE id = sale_id AND is_salon_owner(salon_id))
 );
 
--- NOTIFICAR SCHEMA RELOAD
-NOTIFY pgrst, 'reload schema';
--- 12. TABELA: NOTIFICATION_LOGS (Controle de Automação WhatsApp)
-CREATE TABLE notification_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    appointment_id UUID REFERENCES appointments(id) ON DELETE CASCADE,
-    salon_id UUID REFERENCES salons(id) ON DELETE CASCADE,
-    type TEXT NOT NULL, -- 'confirm', 'remind_24h', 'remind_2h'
-    status TEXT DEFAULT 'pending',
-    sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    error_message TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+-- TABELA: NOTIFICATION_LOGS
+DROP POLICY IF EXISTS "Logs_Owner_Select" ON notification_logs;
+CREATE POLICY "Logs_Owner_Select" ON notification_logs FOR SELECT TO authenticated USING (is_salon_owner(salon_id));
+
+-- TABELA: AUDIT_LOGS
+DROP POLICY IF EXISTS "Audit_Owner_Select" ON audit_logs;
+-- Devido à complexidade de verificar owner em log genérico, limitamos ao owner
+CREATE POLICY "Audit_Owner_Select" ON audit_logs FOR SELECT TO authenticated USING (
+  -- Exemplo simplificado: owner do registro na tabela original.
+  -- Para produção real, ideal ter coluna salon_id no audit_logs.
+  changed_by = auth.uid() 
 );
 
-CREATE INDEX idx_notification_logs_appointment ON notification_logs(appointment_id);
-CREATE INDEX idx_notification_logs_type_status ON notification_logs(type, status);
+
+-- NOTIFICAR SCHEMA RELOAD
+NOTIFY pgrst, 'reload schema';
