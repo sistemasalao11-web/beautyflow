@@ -125,10 +125,21 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
         try {
             let salonData: any = null;
-            const isPublicBooking = !!slug && !user;
+            // FIX: If slug is present, it's ALWAYS a public booking view, even if logged in as admin.
+            // This prevents "Tenant Leakage" where an admin sees their own salon instead of the visited link.
+            const isPublicBooking = !!slug || (!user && !!slug);
 
-            if (user) {
-                // Admin Mode: Fetch from 'salons' table
+            if (slug) {
+                // Public Mode (Prioritized): Use the View to bypass direct salon access restrictions & ensure correct tenant
+                const { data, error: sError } = await supabase
+                    .from('salons_public_view')
+                    .select('*')
+                    .eq('slug', slug)
+                    .limit(1);
+                if (sError) throw sError;
+                salonData = data?.[0] || null;
+            } else if (user) {
+                // Admin Mode (Fallback): Fetch from 'salons' table ONLY if no slug is provided
                 const { data, error: sError } = await supabase
                     .from('salons')
                     .select('*')
@@ -144,15 +155,6 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
                     setStatus('no-salon');
                     return;
                 }
-            } else if (slug) {
-                // Public Mode: Use the View to bypass direct salon access restrictions
-                const { data, error: sError } = await supabase
-                    .from('salons_public_view')
-                    .select('*')
-                    .eq('slug', slug)
-                    .limit(1);
-                if (sError) throw sError;
-                salonData = data?.[0] || null;
             }
 
             if (!salonData) {
