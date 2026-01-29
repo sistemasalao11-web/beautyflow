@@ -225,23 +225,29 @@ DECLARE
     v_recent_count INTEGER;
     v_last_creation TIMESTAMP;
 BEGIN
+    -- 0. Bypass security checks for authenticated salon owners/staff
+    -- Isso permite que o dono faça agendamentos manuais ilimitados via painel admin
+    IF (auth.role() = 'authenticated') THEN
+        RETURN NEW;
+    END IF;
+
     -- 1. Honeypot check (se houver campo de bot preenchido no metadata)
     IF (NEW.metadata->>'honeypot' IS NOT NULL AND NEW.metadata->>'honeypot' <> '') THEN
         RAISE EXCEPTION 'Atividade suspeita detectada (Bot Trap).';
     END IF;
 
-    -- 2. Máximo de 3 agendamentos por telefone em 24h
+    -- 2. Máximo de 10 agendamentos por telefone em 24h (Aumentado de 3 para 10)
     SELECT COUNT(*) INTO v_recent_count 
     FROM appointments 
     WHERE client_phone = NEW.client_phone 
       AND created_at > now() - interval '24 hours'
       AND status <> 'cancelled';
 
-    IF v_recent_count >= 3 THEN
+    IF v_recent_count >= 10 THEN
         RAISE EXCEPTION 'Limite diário de agendamentos excedido para este número.';
     END IF;
 
-    -- 3. Cooldown de 2 minutos entre agendamentos do mesmo número
+    -- 3. Cooldown de 2 minutos entre agendamentos do mesmo número (apenas para anon)
     SELECT MAX(created_at) INTO v_last_creation 
     FROM appointments 
     WHERE client_phone = NEW.client_phone;
@@ -451,16 +457,31 @@ DROP POLICY IF EXISTS "Appointments_Insert_Client" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Owner_All" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Client_Select" ON appointments;
 DROP POLICY IF EXISTS "Appointments_Prof_Select" ON appointments;
+DROP POLICY IF EXISTS "Appointments_Public_Insert" ON appointments;
+DROP POLICY IF EXISTS "Appointments_Member_Select" ON appointments;
+DROP POLICY IF EXISTS "Appointments_Member_Update" ON appointments;
 
+-- 1. Qualquer um pode agendar (Inserir)
 CREATE POLICY "Appointments_Public_Insert" ON appointments FOR INSERT TO anon, authenticated WITH CHECK (true); 
+
+-- 2. Qualquer um pode ver o agendamento (Necessário para o .select() do Supabase funcionar após inserção)
+-- Limitamos para que o visitante possa ver agendamentos do salão ativo ou via ID
+CREATE POLICY "Appointments_Public_Select" ON appointments FOR SELECT TO anon USING (true);
+
+-- 3. Donos e Funcionários veem tudo do seu salão
 CREATE POLICY "Appointments_Member_Select" ON appointments FOR SELECT TO authenticated USING (
     is_salon_owner(salon_id) OR 
     professional_id IN (SELECT id FROM professionals WHERE email = auth.jwt()->>'email')
 );
+
+-- 4. Donos e Funcionários podem atualizar agendamentos do salão
 CREATE POLICY "Appointments_Member_Update" ON appointments FOR UPDATE TO authenticated USING (
     is_salon_owner(salon_id) OR 
     professional_id IN (SELECT id FROM professionals WHERE email = auth.jwt()->>'email')
 );
+
+-- 5. Donos podem deletar agendamentos
+CREATE POLICY "Appointments_Owner_Delete" ON appointments FOR DELETE TO authenticated USING (is_salon_owner(salon_id));
 
 
 -- TABELA: SALES

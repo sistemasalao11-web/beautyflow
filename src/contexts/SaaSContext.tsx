@@ -271,8 +271,19 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
         const loadingToast = toast.loading('Salvando...');
         try {
             const dbData = mapToBackend({ ...data, salonId: salon.id });
-            const { data: result, error: upsertError } = await supabase.from(table).upsert(dbData).select().limit(1);
-            if (upsertError) throw upsertError;
+
+            let query;
+            if (data.id) {
+                // Update existing
+                query = supabase.from(table).update(dbData).eq('id', data.id);
+            } else {
+                // Insert new
+                query = supabase.from(table).insert(dbData);
+            }
+
+            const { data: result, error: dbError } = await query.select().limit(1);
+
+            if (dbError) throw dbError;
             toast.success('Salvo!', { id: loadingToast });
             fetchData();
             return mapToFrontend(result?.[0]);

@@ -8,6 +8,7 @@ import {
     CheckCircle2
 } from 'lucide-react';
 import { format, isAfter, parse, isToday } from 'date-fns';
+import { toast } from 'react-hot-toast';
 import { openWhatsApp } from '../../services/whatsapp';
 import type { Appointment, Professional, Service } from '../../types/saas';
 
@@ -71,6 +72,21 @@ export const ClientBooking = () => {
         });
     }, [selection.date, appointments, settings, selectedService]);
 
+    const whatsappMessage = useMemo(() => {
+        if (!selectedService || !selectedProf) return '';
+        return `Olá! Gostaria de confirmar meu agendamento:
+📌 *Serviço:* ${selectedService.name}
+👤 *Profissional:* ${selectedProf.name}
+📅 *Data:* ${format(parse(selection.date, 'yyyy-MM-dd', new Date()), 'dd/MM')}
+⏰ *Horário:* ${selection.time}
+💰 *Valor:* R$ ${selectedService.price.toFixed(2)}`;
+    }, [selectedService, selectedProf, selection.date, selection.time]);
+
+    const handleWhatsAppRedirect = () => {
+        const phone = (settings?.whatsapp || '').replace(/\D/g, '');
+        openWhatsApp(phone, whatsappMessage);
+    };
+
     const handleBooking = async () => {
         if (!selectedService || !selectedProf || !clientInfo.name || !clientInfo.phone) return;
 
@@ -89,24 +105,17 @@ export const ClientBooking = () => {
                 metadata: { honeypot } // Security data
             });
 
-
-            const whatsappMessage = `Olá! Gostaria de confirmar meu agendamento:
-📌 *Serviço:* ${selectedService.name}
-👤 *Profissional:* ${selectedProf.name}
-📅 *Data:* ${selection.date}
-⏰ *Horário:* ${selection.time}
-💰 *Valor:* R$ ${selectedService.price.toFixed(2)}`;
-
             setIsSuccess(true);
 
-
+            // Tenta abrir automaticamente, mas o navegador pode bloquear. 
+            // Por isso adicionamos o botão manual na tela de sucesso.
             setTimeout(() => {
-                const phone = (settings?.whatsapp || '').replace(/\D/g, '');
-                openWhatsApp(phone, whatsappMessage);
-            }, 2000);
+                handleWhatsAppRedirect();
+            }, 1500);
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Reservation failed:', err);
+            toast.error(err.message || 'Erro ao realizar agendamento.');
         }
     };
 
@@ -134,6 +143,7 @@ export const ClientBooking = () => {
                     <CheckCircle2 size={48} className="text-emerald-500" />
                 </div>
                 <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">Agendamento Realizado!</h2>
+
                 <div className="max-w-sm w-full bg-zinc-900/50 border border-white/5 p-6 space-y-4 mb-8 text-left">
                     <div className="flex justify-between border-b border-white/5 pb-2">
                         <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Serviço</span>
@@ -144,13 +154,25 @@ export const ClientBooking = () => {
                         <span className="text-xs text-white font-bold">{format(parse(selection.date, 'yyyy-MM-dd', new Date()), 'dd/MM')} às {selection.time}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">WhatsApp</span>
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Seu WhatsApp</span>
                         <span className="text-xs text-yellow-500 font-bold">{clientInfo.phone}</span>
                     </div>
                 </div>
-                <p className="text-zinc-500 uppercase tracking-widest text-[10px] font-bold max-w-xs leading-relaxed">
-                    Estamos abrindo seu WhatsApp para a confirmação final.
-                </p>
+
+                <div className="space-y-4 w-full max-w-sm">
+                    <Button
+                        onClick={handleWhatsAppRedirect}
+                        className="w-full !py-8 !bg-emerald-600 hover:!bg-emerald-500 shadow-[0_20px_50px_rgba(16,185,129,0.1)] flex items-center justify-center gap-3"
+                    >
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                        </svg>
+                        Confirmar no WhatsApp
+                    </Button>
+                    <p className="text-zinc-500 uppercase tracking-widest text-[9px] font-bold leading-relaxed">
+                        Caso o WhatsApp não tenha aberto automaticamente, <br /> clique no botão acima para finalizar.
+                    </p>
+                </div>
             </div>
         );
     }
