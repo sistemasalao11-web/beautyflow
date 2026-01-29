@@ -104,6 +104,9 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [notificationLogs, setNotificationLogs] = useState<any[]>([]);
 
+    // Ref for debouncing realtime updates
+    const refreshTimeout = React.useRef<any>(null);
+
     const fetchData = useCallback(async () => {
         if (authLoading) {
             console.log('[BOOT] Waiting for AuthContext...');
@@ -182,9 +185,18 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
             const sId = salonData.id;
             console.log('[BOOT] Fetching ecosystem data for:', sId, 'Public Mode:', isPublicBooking);
 
+            // PERFORMANCE: Limit fetch to last 90 days to prevent browser crash
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            const isoDate = startDate.toISOString();
+
             // Fetch shared data (Public & Admin)
             const [appts, prods, profs, servs, cats] = await Promise.all([
-                supabase.from('appointments').select('*, clients(name, phone), services(name, price), professionals(name)').eq('salon_id', sId).order('date', { ascending: false }),
+                supabase.from('appointments')
+                    .select('*, clients(name, phone), services(name, price), professionals(name)')
+                    .eq('salon_id', sId)
+                    .gte('date', isoDate) // Filter by date
+                    .order('date', { ascending: false }),
                 isPublicBooking ? Promise.resolve({ data: [] }) : supabase.from('products').select('*, categories(name)').eq('salon_id', sId),
                 supabase.from('professionals').select('*').eq('salon_id', sId),
                 supabase.from('services').select('*, categories(name)').eq('salon_id', sId),
@@ -198,9 +210,15 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
             if (!isPublicBooking) {
                 [sles, clnts, nlogs] = await Promise.all([
-                    supabase.from('sales').select('*').eq('salon_id', sId),
+                    supabase.from('sales')
+                        .select('*')
+                        .eq('salon_id', sId)
+                        .gte('created_at', isoDate), // Filter by date
                     supabase.from('clients').select('*').eq('salon_id', sId),
-                    supabase.from('notification_logs').select('*').eq('salon_id', sId)
+                    supabase.from('notification_logs')
+                        .select('*')
+                        .eq('salon_id', sId)
+                        .gte('created_at', isoDate) // Filter by date
                 ]);
             }
 
@@ -257,12 +275,23 @@ export const SaaSProvider: React.FC<{ children: React.ReactNode, slug?: string }
 
     useEffect(() => {
         if (!salon?.id) return;
+
+        // Debounce Realtime Updates to prevent loops
+        const handleRealtime = () => {
+            if (refreshTimeout.current) clearTimeout(refreshTimeout.current);
+            refreshTimeout.current = setTimeout(() => {
+                console.log('[REALTIME] Debounced Refresh');
+                fetchData();
+            }, 1000); // 1 second debounce
+        };
+
         const sub = supabase.channel(`saas-${salon.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', filter: `salon_id=eq.${salon.id}` }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', filter: `salon_id=eq.${salon.id}` }, handleRealtime)
             .subscribe();
 
         return () => {
             sub.unsubscribe();
+            if (refreshTimeout.current) clearTimeout(refreshTimeout.current);
         };
     }, [salon?.id, fetchData]);
 
